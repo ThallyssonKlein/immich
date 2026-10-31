@@ -464,6 +464,14 @@ class _QuickAccessButtonList extends ConsumerWidget {
                 onTap: () => context.pushRoute(FolderRoute()),
               ),
               ListTile(
+                leading: const Icon(Icons.photo_album_outlined, size: 26),
+                title: Text(
+                  context.t.not_in_any_album,
+                  style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500),
+                ),
+                onTap: () => context.pushRoute(const NotInAlbumRoute()),
+              ),
+              ListTile(
                 leading: const Icon(Icons.lock_outline_rounded, size: 26),
                 title: Text(
                   context.t.locked_folder,

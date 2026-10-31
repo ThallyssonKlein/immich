@@ -328,6 +328,18 @@ class TimelineRepository extends DatabaseAccessor<Drift> with $TimelineRepositor
     origin: TimelineOrigin.favorite,
   );
 
+  TimelineQuery notInAlbum(String userId, GroupAssetsBy groupBy) => _remoteQueryBuilder(
+    filter: (row) {
+      final albumAssetIds = _db.remoteAlbumAssetEntity.selectOnly()..addColumns([_db.remoteAlbumAssetEntity.assetId]);
+      return row.deletedAt.isNull() &
+          row.ownerId.equals(userId) &
+          (row.visibility.equalsValue(AssetVisibility.timeline) | row.visibility.equalsValue(AssetVisibility.archive)) &
+          row.id.isNotInQuery(albumAssetIds);
+    },
+    groupBy: groupBy,
+    origin: TimelineOrigin.notInAlbum,
+  );
+
   TimelineQuery trash(String userId, GroupAssetsBy groupBy) => _remoteQueryBuilder(
     filter: (row) => row.deletedAt.isNotNull() & row.ownerId.equals(userId),
     groupBy: groupBy,

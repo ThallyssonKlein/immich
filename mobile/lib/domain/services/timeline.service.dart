@@ -36,6 +36,7 @@ enum TimelineOrigin {
   albumActivities,
   folder,
   recentlyAdded,
+  notInAlbum,
 }
 
 class TimelineFactory {
@@ -61,6 +62,8 @@ class TimelineFactory {
   TimelineService remoteAssets(String userId) => TimelineService(_timelineRepository.remote(userId, groupBy));
 
   TimelineService recentlyAdded(String userId) => TimelineService(_timelineRepository.recentlyAdded(userId, groupBy));
+
+  TimelineService notInAlbum(String userId) => TimelineService(_timelineRepository.notInAlbum(userId, groupBy));
 
   TimelineService favorite(String userId) => TimelineService(_timelineRepository.favorite(userId, groupBy));
 

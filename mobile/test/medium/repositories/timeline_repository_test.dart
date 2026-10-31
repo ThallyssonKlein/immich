@@ -22,6 +22,58 @@ void main() {
     await ctx.dispose();
   });
 
+  group('notInAlbum assets', () {
+    test('returns only the owner\'s visible assets that are in no album', () async {
+      final user = await ctx.newUser();
+      final partner = await ctx.newUser();
+      final album = await ctx.newRemoteAlbum(ownerId: user.id);
+
+      final loose = await ctx.newRemoteAsset(ownerId: user.id, visibility: .timeline);
+      final looseArchived = await ctx.newRemoteAsset(ownerId: user.id, visibility: .archive);
+      final inAlbum = await ctx.newRemoteAsset(ownerId: user.id, visibility: .timeline);
+      await ctx.newRemoteAlbumAsset(albumId: album.id, assetId: inAlbum.id);
+      await ctx.newRemoteAsset(ownerId: user.id, visibility: .locked);
+      await ctx.newRemoteAsset(ownerId: user.id, visibility: .hidden);
+      await ctx.newRemoteAsset(ownerId: user.id, visibility: .timeline, deletedAt: DateTime.utc(2024));
+      await ctx.newRemoteAsset(ownerId: partner.id, visibility: .timeline);
+
+      final query = sut.notInAlbum(user.id, .day);
+
+      final buckets = await query.bucketSource().first;
+      expect(buckets.fold<int>(0, (sum, bucket) => sum + bucket.assetCount), 2);
+
+      final assets = await query.assetSource(0, 10);
+      expect(assets.cast<RemoteAsset>().map((asset) => asset.id), unorderedEquals([loose.id, looseArchived.id]));
+    });
+
+    test('an asset in any album is excluded, including an album owned by someone else', () async {
+      final user = await ctx.newUser();
+      final other = await ctx.newUser();
+      final sharedAlbum = await ctx.newRemoteAlbum(ownerId: other.id);
+      final asset = await ctx.newRemoteAsset(ownerId: user.id);
+      await ctx.newRemoteAlbumAsset(albumId: sharedAlbum.id, assetId: asset.id);
+
+      expect(await sut.notInAlbum(user.id, .day).assetSource(0, 10), isEmpty);
+    });
+
+    test('the bucket stream updates when an asset is added to an album', () async {
+      final user = await ctx.newUser();
+      final album = await ctx.newRemoteAlbum(ownerId: user.id);
+      final asset = await ctx.newRemoteAsset(ownerId: user.id);
+
+      final counts = sut
+          .notInAlbum(user.id, .day)
+          .bucketSource()
+          .map((buckets) => buckets.fold<int>(0, (sum, bucket) => sum + bucket.assetCount));
+      final expectation = expectLater(counts, emitsInOrder([1, 0]));
+
+      await pumpEventQueue();
+      await ctx.newRemoteAlbumAsset(albumId: album.id, assetId: asset.id);
+
+      await expectation;
+    });
+  });
+
   group('remoteAlbum assets', () {
     test('no duplicate assets when identical checksum appears in multiple local asset rows', () async {
       // Regression check for #23273: a LEFT OUTER JOIN on checksum would fan out and create duplicates
